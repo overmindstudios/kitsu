@@ -533,7 +533,7 @@ const actions = {
         Promise.all(createTaskPromises).then(() => {
           if (callback) callback(null, shot)
         }).catch((err) => {
-          console.log(err)
+          console.error(err)
         })
       }
     })
@@ -915,6 +915,10 @@ const actions = {
       return shotLine
     })
     return lines
+  },
+
+  loadShotHistory ({ commit, state }, shotId) {
+    return shotsApi.loadShotHistory(shotId)
   }
 }
 
@@ -1470,7 +1474,7 @@ const mutations = {
       shot.preview_file_id = previewId
       shot.tasks.forEach((taskId) => {
         const task = taskMap[taskId]
-        task.entity.preview_file_id = previewId
+        if (task) task.entity.preview_file_id = previewId
       })
     }
   },
@@ -1736,5 +1740,6 @@ export default {
   state,
   getters,
   actions,
-  mutations
+  mutations,
+  cache
 }

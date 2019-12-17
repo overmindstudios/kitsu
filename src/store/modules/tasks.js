@@ -61,6 +61,8 @@ import {
   UPDATE_COMMENT_CHECKLIST,
   SET_LAST_COMMENT_DRAFT,
 
+  REMOVE_FIRST_PREVIEW_FILE_TO_UPLOAD,
+
   RESET_ALL
 } from '../mutation-types'
 
@@ -82,7 +84,7 @@ const initialState = {
   isShowInfos: true,
 
   isSavingCommentPreview: false,
-  previewFormData: null,
+  previewForms: [],
 
   lastCommentDraft: ''
 }
@@ -136,7 +138,7 @@ const getters = {
   isShowAssignations: state => state.isShowAssignations,
   isShowInfos: state => state.isShowInfos,
   taskEntityPreviews: state => state.taskEntityPreviews,
-  previewFormData: state => state.previewFormData,
+  previewForms: state => state.previewForms,
   isSavingCommentPreview: state => state.isSavingCommentPreview,
   lastCommentDraft: state => state.lastCommentDraft
 }
@@ -242,13 +244,11 @@ const actions = {
     })
   },
 
-  commentTask ({ commit, state }, { taskId, taskStatusId, comment, callback }) {
-    tasksApi.commentTask({ taskId, taskStatusId, comment }, (err, comment) => {
-      if (!err) {
+  commentTask ({ commit, state }, { taskId, taskStatusId, comment }) {
+    return tasksApi.commentTask({ taskId, taskStatusId, comment })
+      .then((comment) => {
         commit(NEW_TASK_COMMENT_END, { comment, taskId })
-      }
-      if (callback) callback(err, comment)
-    })
+      })
   },
 
   loadComment ({ commit, state }, { commentId, callback }) {
@@ -359,11 +359,10 @@ const actions = {
         actions.commentTask({ commit, state }, {
           taskId: taskId,
           taskStatusId: taskStatusId,
-          comment: comment || '',
-          callback: (err) => {
-            next(err)
-          }
+          comment: comment || ''
         })
+          .then(next)
+          .catch((err) => next(err))
       } else {
         next()
       }
@@ -470,64 +469,69 @@ const actions = {
   },
 
   commentTaskWithPreview (
-    { commit, getters, state },
-    { taskId, commentText, taskStatusId, callback }
+    { commit, getters, state, dispatch },
+    { taskId, commentText, taskStatusId, form }
   ) {
     const data = { taskId, taskStatusId, comment: commentText }
     commit(ADD_PREVIEW_START)
-    tasksApi.commentTask(data, (err, comment) => {
-      if (err) {
-        callback(err)
-      } else {
+    let newComment
+    return tasksApi.commentTask(data)
+      .then((comment) => {
+        newComment = comment
         const previewData = {
           taskId,
-          commentId: comment.id
+          commentId: newComment.id
         }
-        tasksApi.addPreview(previewData, (err, preview) => {
-          if (err && callback) {
-            callback(err)
-          } else {
-            tasksApi.uploadPreview(preview.id, state.previewFormData, (err, preview) => {
-              if (!err) {
-                commit(NEW_TASK_COMMENT_END, { comment, taskId })
-                commit(ADD_PREVIEW_END, {
-                  preview,
-                  taskId,
-                  commentId: comment.id,
-                  comment
-                })
-              }
-              if (callback) callback(err, preview)
-            })
-          }
+        return tasksApi.addPreview(previewData)
+      }).then((preview) => {
+        if (!form) form = state.previewForms[0]
+        return tasksApi.uploadPreview(preview.id, form)
+      }).then((preview) => {
+        commit(NEW_TASK_COMMENT_END, { comment: newComment, taskId })
+        commit(ADD_PREVIEW_END, {
+          preview,
+          taskId,
+          commentId: newComment.id,
+          comment: newComment
         })
-      }
-    })
+        if (state.previewForms.length > 1) {
+          commit(REMOVE_FIRST_PREVIEW_FILE_TO_UPLOAD)
+          dispatch('addCommentExtraPreview', {
+            taskId,
+            commentId: newComment.id,
+            previewId: preview.id
+          })
+        }
+        return Promise.resolve({ newComment, preview })
+      })
   },
 
   addCommentExtraPreview (
     { commit, getters, state },
-    { taskId, commentId, previewId, callback }
+    { taskId, commentId, previewId }
   ) {
-    tasksApi.addExtraPreview(previewId, taskId, commentId, (err, preview) => {
-      if (err && callback) {
-        callback(err)
-      } else {
-        tasksApi.uploadPreview(preview.id, state.previewFormData, (err) => {
-          if (!err) {
-            const comment = getters.getTaskComment(taskId, commentId)
-            preview.extension = 'png'
-            commit(ADD_PREVIEW_END, {
-              preview,
-              taskId,
-              commentId,
-              comment
-            })
-          }
-          if (callback) callback(err, preview)
+    const addPreview = (form) => {
+      return tasksApi
+        .addExtraPreview(previewId, taskId, commentId)
+        .then((preview) => {
+          return tasksApi.uploadPreview(preview.id, form)
         })
-      }
-    })
+        .then((preview) => {
+          const comment = getters.getTaskComment(taskId, commentId)
+          preview.extension = 'png'
+          commit(ADD_PREVIEW_END, {
+            preview,
+            taskId,
+            commentId,
+            comment
+          })
+        })
+    }
+    state.previewForms.reduce((accumulatorPromise, form) => {
+      return accumulatorPromise.then(() => {
+        return addPreview(form)
+      })
+    }, Promise.resolve())
   },
 
   deleteTaskPreview ({ commit, state }, { taskId, commentId, previewId }) {
@@ -541,31 +545,14 @@ const actions = {
     })
   },
 
-  changeCommentPreview ({ commit, state }, {
-    comment, preview, taskId, callback
-  }) {
-    const fileName = state.previewFormData.get('file').name
-    const extension = fileName.slice(fileName.length - 4)
-    preview.extension = extension
-
-    tasksApi.uploadPreview(preview.id, state.previewFormData, (err) => {
-      if (!err) {
-        commit(CHANGE_PREVIEW_END, { comment, preview })
-      }
-      if (callback) callback(err, extension)
-    })
-  },
-
-  setPreview ({ commit, state }, { taskId, entityId, previewId, callback }) {
+  setPreview ({ commit, state }, { taskId, entityId, previewId }) {
     const taskMap = state.taskMap
-    tasksApi.setPreview(entityId, previewId, (err, entity) => {
-      if (err && callback) {
-        callback(err)
-      } else if (callback) {
+    return tasksApi
+      .setPreview(entityId, previewId)
+      .then((entity) => {
         commit(SET_PREVIEW, { taskId, entityId, previewId, taskMap })
-        callback(err, entity)
-      }
-    })
+        Promise.resolve()
+      })
   },
 
   updatePreviewAnnotation ({ commit, state }, {
@@ -582,7 +569,7 @@ const actions = {
           resolve()
         })
         .catch((err) => {
-          console.log(err)
+          console.error(err)
           reject(err)
         })
     })
@@ -635,8 +622,8 @@ const actions = {
     commit(SET_IS_SHOW_INFOS, false)
   },
 
-  loadPreviewFileFormData ({ commit }, previewFormData) {
-    commit('PREVIEW_FILE_SELECTED', previewFormData)
+  loadPreviewFileFormData ({ commit }, previewForms) {
+    commit('PREVIEW_FILE_SELECTED', previewForms)
   },
 
   addSelectedTask ({ commit }, task) {
@@ -860,8 +847,8 @@ const mutations = {
     oldComment.text = comment.text
   },
 
-  [PREVIEW_FILE_SELECTED] (state, formData) {
-    state.previewFormData = formData
+  [PREVIEW_FILE_SELECTED] (state, forms) {
+    state.previewForms = forms
   },
 
   [ADD_PREVIEW_START] (state) {
@@ -877,23 +864,25 @@ const mutations = {
       extension: preview.extension
     }
 
-    const existingPreview = state.taskPreviews[taskId].find(
-      (p) => p.revision === preview.revision
-    )
+    if (state.taskPreviews[taskId]) {
+      const existingPreview = state.taskPreviews[taskId].find(
+        (p) => p.revision === preview.revision
+      )
 
-    if (existingPreview) {
-      const existingSubPreview =
-        existingPreview.previews.find((p) => p.id === newPreview.id)
-      if (!existingSubPreview) {
-        existingPreview.previews.push(newPreview)
+      if (existingPreview) {
+        const existingSubPreview =
+          existingPreview.previews.find((p) => p.id === newPreview.id)
+        if (!existingSubPreview) {
+          existingPreview.previews.push(newPreview)
+        }
+      } else {
+        newPreview.previews = [{ ...newPreview }]
+        state.taskPreviews[taskId] =
+          [newPreview].concat(state.taskPreviews[taskId])
+
+        comment.preview = newPreview
+        comment.previews = [newPreview]
       }
-    } else {
-      newPreview.previews = [{ ...newPreview }]
-      state.taskPreviews[taskId] =
-        [newPreview].concat(state.taskPreviews[taskId])
-
-      comment.preview = newPreview
-      comment.previews = [newPreview]
     }
   },
 
@@ -1123,6 +1112,10 @@ const mutations = {
 
   [SET_LAST_COMMENT_DRAFT] (state, lastCommentDraft) {
     state.lastCommentDraft = lastCommentDraft
+  },
+
+  [REMOVE_FIRST_PREVIEW_FILE_TO_UPLOAD] (state) {
+    state.previewForms = state.previewForms.splice(1)
   },
 
   [RESET_ALL] (state, shots) {

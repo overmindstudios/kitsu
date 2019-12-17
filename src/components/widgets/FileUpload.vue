@@ -9,7 +9,9 @@
           :name="uploadFieldName"
           :disabled="isSaving"
           @change="filesChange($event.target.name, $event.target.files)"
-          class="input-file">
+          class="input-file"
+          :multiple="multiple"
+        >
       </div>
     </form>
   </div>
@@ -26,6 +28,10 @@ export default {
     accept: {
       default: '.csv',
       type: String
+    },
+    multiple: {
+      default: false,
+      type: Boolean
     }
   },
   data () {
@@ -38,10 +44,19 @@ export default {
   computed: {},
   watch: {},
   methods: {
-    filesChange (name, fileList) {
-      const formData = new FormData()
-      formData.append(this.uploadFieldName, fileList[0], fileList[0].name)
-      this.$emit('fileselected', formData)
+    filesChange (name, files) {
+      const forms = []
+      for (let i = 0, numFiles = files.length; i < numFiles; i++) {
+        const file = files[i]
+        const formData = new FormData()
+        formData.append(this.uploadFieldName, file, file.name)
+        forms.push(formData)
+      }
+      if (this.multiple) {
+        this.$emit('fileselected', forms)
+      } else {
+        this.$emit('fileselected', forms[0])
+      }
     },
     reset () {
       this.isSaving = false

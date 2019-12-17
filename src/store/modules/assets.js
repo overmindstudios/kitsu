@@ -244,6 +244,7 @@ const state = {
 }
 
 const getters = {
+  assets: state => cache.assets,
   assetMap: state => state.assetMap,
   assetSearchText: state => state.assetSearchText,
   assetSearchQueries: state => state.assetSearchQueries,
@@ -376,7 +377,7 @@ const actions = {
         Promise.all(createTaskPromises).then(() => {
           if (callback) callback()
         }).catch((err) => {
-          console.log(err)
+          console.error(err)
         })
       }
     })
@@ -1077,5 +1078,6 @@ export default {
   state,
   getters,
   actions,
-  mutations
+  mutations,
+  cache
 }

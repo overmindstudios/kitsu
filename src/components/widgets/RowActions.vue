@@ -1,7 +1,17 @@
 <template>
 <td class="actions has-text-right">
+  <button
+    class="button"
+    data-test="button-history"
+    @click="$emit('history-clicked')"
+    v-if="!hideHistory"
+  >
+    <clock-icon class="icon is-small only-icon" />
+  </button>
+
   <router-link
     class="button"
+    data-test="button-edit"
     :to="editRoute"
     v-if="!hideEdit && !entry.canceled"
   >
@@ -10,6 +20,7 @@
 
   <router-link
     class="button"
+    data-test="button-restore"
     :to="restoreRoute"
     v-if="entry.canceled"
   >
@@ -18,6 +29,7 @@
 
   <router-link
     class="button"
+    data-test="button-delete-admin"
     :to="deleteRoute"
     v-if="!hideDelete && !entry.canceled && isCurrentUserAdmin"
   >
@@ -26,6 +38,7 @@
 
   <router-link
     class="button"
+    data-test="button-delete"
     :to="deleteRoute"
     v-else-if="!hideDelete"
   >
@@ -37,6 +50,7 @@
 <script>
 import { mapGetters, mapActions } from 'vuex'
 import {
+  ClockIcon,
   EditIcon,
   RotateCcwIcon,
   TrashIcon
@@ -45,6 +59,7 @@ import {
 export default {
   name: 'row-actions',
   components: {
+    ClockIcon,
     EditIcon,
     RotateCcwIcon,
     TrashIcon
@@ -80,6 +95,10 @@ export default {
     hideDelete: {
       type: Boolean,
       default: false
+    },
+    hideHistory: {
+      type: Boolean,
+      default: true
     }
   },
   computed: {

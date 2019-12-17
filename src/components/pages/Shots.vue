@@ -25,6 +25,12 @@
             <div class="flexrow" v-if="isCurrentUserManager">
               <button-simple
                 class="flexrow-item"
+                :title="$t('entities.thumbnails.title')"
+                icon="image"
+                @click="showAddThumbnailsModal"
+              />
+              <button-simple
+                class="flexrow-item"
                 :title="$t('main.csv.import_file')"
                 icon="upload"
                 @click="showImportModal"
@@ -67,6 +73,7 @@
         @add-metadata="onAddMetadataClicked"
         @delete-metadata="onDeleteMetadataClicked"
         @edit-metadata="onEditMetadataClicked"
+        @shot-history="showShotHistoryModal"
         @add-shots="showManageShots"
       />
     </div>
@@ -179,6 +186,21 @@
     @cancel="closeMetadataModal"
     @confirm="confirmAddMetadata"
   />
+
+  <add-thumbnails-modal
+    ref="add-thumbnails-modal"
+    :active="modals.isAddThumbnailsDisplayed"
+    :is-loading="loading.addThumbnails"
+    :is-error="errors.addThumbnails"
+    @cancel="hideAddThumbnailsModal"
+    @confirm="confirmAddThumbnails"
+  />
+
+  <shot-history-modal
+    :active="modals.isShotHistoryDisplayed"
+    :shot="historyShot"
+    @cancel="hideShotHistoryModal"
+  />
 </div>
 </template>
 
@@ -186,10 +208,12 @@
 import moment from 'moment'
 import { mapGetters, mapActions } from 'vuex'
 import csv from '../../lib/csv'
+import func from '../../lib/func'
 import { sortByName } from '../../lib/sorting'
 import { slugify } from '../../lib/string'
 
 import AddMetadataModal from '../modals/AddMetadataModal'
+import AddThumbnailsModal from '../modals/AddThumbnailsModal'
 import ButtonSimple from '../widgets/ButtonSimple'
 import CreateTasksModal from '../modals/CreateTasksModal'
 import DeleteModal from '../modals/DeleteModal'
@@ -201,6 +225,7 @@ import SearchField from '../widgets/SearchField'
 import SearchQueryList from '../widgets/SearchQueryList'
 import ShowAssignationsButton from '../widgets/ShowAssignationsButton'
 import ShowInfosButton from '../widgets/ShowInfosButton'
+import ShotHistoryModal from '../modals/ShotHistoryModal'
 import ShotList from '../lists/ShotList.vue'
 import TaskInfo from '../sides/TaskInfo.vue'
 
@@ -209,6 +234,7 @@ export default {
 
   components: {
     AddMetadataModal,
+    AddThumbnailsModal,
     ButtonSimple,
     CreateTasksModal,
     DeleteModal,
@@ -218,6 +244,7 @@ export default {
     ManageShotsModal,
     SearchField,
     SearchQueryList,
+    ShotHistoryModal,
     ShowAssignationsButton,
     ShowInfosButton,
     ShotList,
@@ -227,8 +254,23 @@ export default {
   data () {
     return {
       initialLoading: true,
+      deleteAllTasksLockText: null,
+      descriptorToEdit: {},
+      historyShot: {},
+      shotToDelete: null,
+      shotToEdit: null,
+      columns: [
+        'Episode',
+        'Sequence',
+        'Name',
+        'Description',
+        'FPS',
+        'Frame In',
+        'Frame Out'
+      ],
       modals: {
         isAddMetadataDisplayed: false,
+        isAddThumbnailsDisplayed: false,
         isCreateTasksDisplayed: false,
         isDeleteDisplayed: false,
         isDeleteMetadataDisplayed: false,
@@ -236,10 +278,12 @@ export default {
         isImportDisplayed: false,
         isManageDisplayed: false,
         isNewDisplayed: false,
-        isRestoreDisplayed: false
+        isRestoreDisplayed: false,
+        isShotHistoryDisplayed: false
       },
       loading: {
         addMetadata: false,
+        addThumbnails: false,
         creatingTasks: false,
         creatingTasksStay: false,
         deleteAllTasks: false,
@@ -254,20 +298,7 @@ export default {
         creatingTasks: false,
         deleteAllTasks: false,
         importing: false
-      },
-      descriptorToEdit: {},
-      shotToDelete: null,
-      shotToEdit: null,
-      columns: [
-        'Episode',
-        'Sequence',
-        'Name',
-        'Description',
-        'FPS',
-        'Frame In',
-        'Frame Out'
-      ],
-      deleteAllTasksLockText: null
+      }
     }
   },
 
@@ -304,7 +335,11 @@ export default {
       'shotValidationColumns',
       'shotListScrollPosition',
       'taskTypeMap'
-    ])
+    ]),
+
+    addThumbnailsModal () {
+      return this.$refs['add-thumbnails-modal']
+    }
   },
 
   created () {
@@ -354,15 +389,17 @@ export default {
   methods: {
     ...mapActions([
       'addMetadataDescriptor',
-      'getShotsCsvLines',
+      'commentTaskWithPreview',
       'deleteAllTasks',
       'deleteMetadataDescriptor',
+      'getShotsCsvLines',
       'hideAssignations',
       'loadShots',
       'loadComment',
       'removeShotSearch',
       'saveShotSearch',
       'setLastProductionScreen',
+      'setPreview',
       'setShotSearch',
       'showAssignations',
       'uploadShotFile'
@@ -482,6 +519,35 @@ export default {
           }
         }
       })
+    },
+
+    confirmAddThumbnails (forms) {
+      const addPreview = (form) => {
+        this.addThumbnailsModal.markLoading(form.task.entity_id)
+        return this.commentTaskWithPreview({
+          taskId: form.task.id,
+          commentText: '',
+          taskStatusId: form.task.task_status_id,
+          form: form
+        })
+          .then(({ newComment, preview }) => {
+            return this.setPreview({
+              taskId: form.task.id,
+              entityId: form.task.entity_id,
+              previewId: preview.id
+            })
+          })
+          .then(() => {
+            this.addThumbnailsModal.markUploaded(form.task.entity_id)
+            return Promise.resolve()
+          })
+      }
+      this.loading.addThumbnails = true
+      func.runPromiseMapAsSeries(forms, addPreview)
+        .then(() => {
+          this.loading.addThumbnails = false
+          this.modals.isAddThumbnailsDisplayed = false
+        })
     },
 
     confirmCreateTasks (form) {
@@ -694,6 +760,23 @@ export default {
 
     hideCreateTasksModal () {
       this.modals.isCreateTasksDisplayed = false
+    },
+
+    showAddThumbnailsModal () {
+      this.modals.isAddThumbnailsDisplayed = true
+    },
+
+    hideAddThumbnailsModal () {
+      this.modals.isAddThumbnailsDisplayed = false
+    },
+
+    showShotHistoryModal (shot) {
+      this.historyShot = shot
+      this.modals.isShotHistoryDisplayed = true
+    },
+
+    hideShotHistoryModal () {
+      this.modals.isShotHistoryDisplayed = false
     },
 
     onExportClick () {

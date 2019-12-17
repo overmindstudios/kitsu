@@ -45,7 +45,13 @@ export default {
   breakdown: {
     all_assets: 'All available assets',
     empty: 'Empty casting',
-    title: 'Breakdown'
+    title: 'Breakdown',
+    edit_label: 'Change the asset\'s label',
+    label: 'Label',
+    options: {
+      fixed: 'fixed',
+      animate: 'animate'
+    }
   },
 
   comments: {
@@ -90,6 +96,19 @@ export default {
       all: 'All',
       shot: 'Shot',
       asset: 'Asset'
+    }
+  },
+
+  entities: {
+    thumbnails: {
+      error: 'An error occured while uploading thumbnails',
+      explaination: 'Adding a thumbnail requires to set a new preview. In order to set several thumbnails at the same time, you must chose first a task type that will be used to create the new previews. The thumbnails will be set from this new preview.',
+      explaination_two: 'Then you have to select the files you want to upload. To find the right entities, the file names must match the following pattern: "parent name entity name".',
+      select_files: 'Select Files',
+      selected_files: 'Selected Files',
+      select_task_type: 'Select Task Type',
+      title: 'Add Thumbnails',
+      upload: 'Add Thumbnails'
     }
   },
 
@@ -138,15 +157,16 @@ export default {
     admin: 'Admin',
     cancel: 'Cancel',
     clear_selection: 'Clear current selection',
-    documentation: 'Documentation',
     close: 'Close',
     confirmation: 'Confirm',
     confirmation_and_stay: 'Confirm and stay',
+    date: 'Date',
     dark_theme: 'Dark Theme',
     days_spent: 'day spent | days spent',
     delete: 'Delete',
     delete_all: 'Delete all',
     delete_text: 'Are you sure you want to remove {name} from your database?',
+    documentation: 'Documentation',
     edit: 'Edit',
     empty_comment: 'Empty comment',
     end_date: 'End date',
@@ -278,6 +298,7 @@ export default {
   playlists: {
     add_shots: 'Add shots',
     add_sequence: 'Add whole sequence',
+    add_episode: 'Add whole episode',
     available_build: 'Available builds',
     build_daily: 'Daily pending',
     build_weekly: 'All Pending',
@@ -480,6 +501,7 @@ export default {
     empty_list: 'There is no shot in the production. What about creating some?',
     empty_list_client: 'There is no shot in this production.',
     episodes: 'Episodes',
+    history: 'Shot values history',
     new_shot: 'Add a shot',
     new_shots: 'Add shots',
     new_sequences: 'Add sequences',

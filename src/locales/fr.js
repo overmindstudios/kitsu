@@ -44,7 +44,13 @@ export default {
   breakdown: {
     all_assets: 'Tous les assets disponibles',
     empty: 'Casting vide',
-    title: 'Casting'
+    title: 'Casting',
+    edit_label: 'Changer le label de l\'asset',
+    label: 'Label',
+    options: {
+      fixed: 'fixe',
+      animate: 'animé'
+    }
   },
 
   comments: {
@@ -90,6 +96,18 @@ export default {
     }
   },
 
+  entities: {
+    thumbnails: {
+      error: 'Une erreur s\'est produite en téléversant les vignettes',
+
+      select_files: 'Sélectionner les fichiers',
+      selected_files: 'Fichiers sélectionnés',
+      select_task_type: 'Sélectionner un type de tâche',
+      title: 'Ajouter des vignettes',
+      upload: 'Téléverser des vignettes'
+    }
+  },
+
   episodes: {
     all_episodes: 'Tous les épisodes',
     edit_title: 'Éditer épisode',
@@ -126,6 +144,7 @@ export default {
     confirmation_and_stay: 'Confirmer et rester',
     clear_selection: 'Effacer la sélection',
     close: 'Fermer',
+    date: 'Date',
     days_spent: 'Jours passés',
     edit: 'Modifier',
     dark_theme: 'Thème sombre',
@@ -204,6 +223,7 @@ export default {
   playlists: {
     add_shots: 'Sélectonner les plans',
     add_sequence: 'Ajouter séquence',
+    add_episode: 'Ajouter l\'épisode',
     available_build: 'Builds disponibles',
     build_daily: 'Valid. quotidienne',
     build_weekly: 'Valid. hebodomadaire',
@@ -240,6 +260,7 @@ export default {
     edit_title: 'Modifier les informations de',
     empty_team: 'Personne n\'a été affecté à cette production.',
     episodes: 'Épisodes',
+    history: 'Historique des valeurs de plans',
     no_task_assigned: 'Il n\'y a aucune tâche assignée.',
     new_person: 'Ajouter un employé',
     padding: 'Ecart',
